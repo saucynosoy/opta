@@ -57,6 +57,12 @@ modules:
           scheduler:
             eventScheduler:
               scheduleRole: "arn:aws:iam::889760294590:role/flyte"
+      configmap:
+        remoteData:
+          region: "us-east-1"
+          scheme: aws
+          signedUrls:
+            durationMinutes: 3
       cluster_resource_manager:
         enabled: true
         config:
