@@ -7,3 +7,4 @@ providers:
 modules:
   - type: azure-base
   - type: azure-aks
+  - type: azure-k8s-base

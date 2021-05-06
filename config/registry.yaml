@@ -162,6 +162,16 @@ modules:
       layer_name: str
       module_name: str
       api_key: optional
+  azure-k8s-base:
+    location: azure-k8s-base
+    root_only: true
+    variables:
+      env_name: str
+      layer_name: str
+      module_name: str
+      high_availability: optional
+      domain: optional
+    outputs: {}
   k8s-base:
     location: k8s-base
     root_only: true
@@ -367,13 +377,18 @@ modules:
         export: true
         sensitive: true
     providers:
+      data:
+        azurerm_kubernetes_cluster:
+          k8s:
+            name: "opta-{layer_name}"
+            resource_group_name: "opta-{layer_name}"
       provider:
         helm:
           kubernetes:
-            host: "${{{module_source}.kube_config.0.host}}"
-            client_certificate: "${{base64decode({module_source}.kube_config.0.client_certificate)}}"
-            client_key: "${{base64decode({module_source}.kube_config.0.client_key)}}"
-            cluster_ca_certificate: "${{base64decode({module_source}.kube_config.0.cluster_ca_certificate)}}"
+            host: "${{data.azurerm_kubernetes_cluster.k8s.kube_config.0.host}}"
+            client_certificate: "${{base64decode(data.azurerm_kubernetes_cluster.k8s.kube_config.0.client_certificate)}}"
+            client_key: "${{base64decode(data.azurerm_kubernetes_cluster.k8s.kube_config.0.client_key)}}"
+            cluster_ca_certificate: "${{base64decode(data.azurerm_kubernetes_cluster.k8s.kube_config.0.cluster_ca_certificate)}}"
   gcp-gke:
     location: gcp-gke
     halt: true
