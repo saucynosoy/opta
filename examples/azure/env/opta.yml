@@ -1,0 +1,8 @@
+name: demo
+org_name: runx
+providers:
+  azure:
+    region: centralus
+    subscription_id: 73903fcd-dadd-4bf2-ae4b-ccc4ba9016a1
+modules:
+  - type: azure-base

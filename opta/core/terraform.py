@@ -6,6 +6,10 @@ from subprocess import DEVNULL, PIPE
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 
 import boto3
+from azure.core.exceptions import ResourceNotFoundError
+from azure.identity import AzureCliCredential
+from azure.mgmt.resource import ResourceManagementClient
+from azure.mgmt.storage import StorageManagementClient
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from google.api_core.exceptions import ClientError as GoogleClientError
@@ -18,6 +22,7 @@ from oauth2client.client import GoogleCredentials
 
 from opta.amplitude import amplitude_client
 from opta.core.aws import AWS, get_aws_resource_id
+from opta.core.azure import Azure
 from opta.core.gcp import GCP
 from opta.exceptions import UserErrors
 from opta.nice_subprocess import nice_run
@@ -221,6 +226,8 @@ class Terraform:
             return cls._aws_verify_storage(layer)
         elif layer.cloud == "google":
             return cls._gcp_verify_storage(layer)
+        elif layer.cloud == "azure":
+            return cls._azure_verify_storage(layer)
         else:
             raise Exception(f"Can not verify state storage for cloud {layer.cloud}")
 
@@ -234,6 +241,29 @@ class Terraform:
         except NotFound:
             return False
         return True
+
+    @classmethod
+    def _azure_verify_storage(cls, layer: "Layer") -> bool:
+        credentials = Azure.get_credentials()
+        providers = layer.gen_providers(0)
+
+        resource_group_name = providers["terraform"]["backend"]["azurerm"][
+            "resource_group_name"
+        ]
+        storage_account_name = providers["terraform"]["backend"]["azurerm"][
+            "storage_account_name"
+        ]
+        container_name = providers["terraform"]["backend"]["azurerm"]["container_name"]
+        subscription_id = providers["provider"]["azure"]["subscription_id"]
+
+        storage_client = StorageManagementClient(credentials, subscription_id)
+        try:
+            storage_client.blob_containers.get(
+                resource_group_name, storage_account_name, container_name
+            )
+            return True
+        except ResourceNotFoundError:
+            return False
 
     @classmethod
     def _aws_verify_storage(cls, layer: "Layer") -> bool:
@@ -302,9 +332,9 @@ class Terraform:
             logger.info(
                 fmt_msg(
                     """
-                    We store state in S3/GCP buckets. Since the state bucket was not found,
+                    We store state in S3/GCP buckets/Azure storage. Since the state was not found,
                     ~this probably means that you either haven't created your opta resources yet,
-                    ~or you previously successfully destroyed your opta resources (including the state bucket).
+                    ~or you previously successfully destroyed your opta resources.
                     """
                 )
             )
@@ -342,6 +372,9 @@ class Terraform:
                     # The object does not exist.
                     return False
                 raise
+        elif "azurerm" in providers.get("terraform", {}).get("backend", {}):
+            return False
+            # TODO(ankur)
         else:
             raise UserErrors("Need to get state from S3 or GCS")
 
@@ -472,6 +505,65 @@ class Terraform:
             )
 
     @classmethod
+    def _create_azure_state_storage(cls, providers: dict) -> None:
+        resource_group_name = providers["terraform"]["backend"]["azurerm"][
+            "resource_group_name"
+        ]
+        region = providers["provider"]["azure"]["region"]
+        subscription_id = providers["provider"]["azure"]["subscription_id"]
+        storage_account_name = providers["terraform"]["backend"]["azurerm"][
+            "storage_account_name"
+        ]
+        container_name = providers["terraform"]["backend"]["azurerm"]["container_name"]
+
+        # Create RG
+        credential = AzureCliCredential()
+        resource_client = ResourceManagementClient(credential, subscription_id)
+        rg_result = resource_client.resource_groups.create_or_update(
+            resource_group_name, {"location": region}
+        )
+
+        print(
+            f"Provisioned resource group {rg_result.name} in the {rg_result.location} region"
+        )
+
+        # Create SA
+        storage_client = StorageManagementClient(credential, subscription_id)
+        try:
+            storage_client.storage_accounts.get_properties(
+                resource_group_name, storage_account_name
+            )
+            print(f"Storage account {storage_account_name} already exists!")
+        except ResourceNotFoundError:
+            print("Need to create storage account")
+            # create sa
+            poller = storage_client.storage_accounts.begin_create(
+                resource_group_name,
+                storage_account_name,
+                {
+                    "location": region,
+                    "kind": "StorageV2",
+                    "sku": {"name": "Standard_LRS"},
+                },
+            )
+
+            account_result = poller.result()
+            print(f"Provisioned storage account {account_result.name}")
+
+        # create container
+        try:
+            container = storage_client.blob_containers.get(
+                resource_group_name, storage_account_name, container_name
+            )
+            print("container exists")
+        except ResourceNotFoundError:
+            print("Need to create container")
+            container = storage_client.blob_containers.create(
+                resource_group_name, storage_account_name, container_name, {}
+            )
+            print(f"Provisioned container {container.name}")
+
+    @classmethod
     def _create_aws_state_storage(cls, providers: dict) -> None:
         bucket_name = providers["terraform"]["backend"]["s3"]["bucket"]
         dynamodb_table = providers["terraform"]["backend"]["s3"]["dynamodb_table"]
@@ -579,6 +671,8 @@ class Terraform:
             cls._create_aws_state_storage(providers)
         if "gcs" in providers.get("terraform", {}).get("backend", {}):
             cls._create_gcp_state_storage(providers)
+        if "azurerm" in providers.get("terraform", {}).get("backend", {}):
+            cls._create_azure_state_storage(providers)
 
 
 def get_terraform_outputs(layer: "Layer", pull_state: bool = True) -> dict:

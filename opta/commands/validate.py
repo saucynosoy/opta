@@ -48,8 +48,10 @@ class Opta(Validator):
                 schema_path = path.join(schema_dir_path, "gcp_environment.yaml")
             elif value.get("providers", {}).get("aws"):
                 schema_path = path.join(schema_dir_path, "aws_environment.yaml")
+            elif value.get("providers", {}).get("azure"):
+                schema_path = path.join(schema_dir_path, "azure_environment.yaml")
             else:
-                raise UserErrors("We currently only support AWS and GCP")
+                raise UserErrors("We currently only support AWS, GCP and Azure")
         else:
             schema_path = path.join(schema_dir_path, "service.yaml")
 

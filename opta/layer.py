@@ -58,6 +58,7 @@ class Layer:
         )
         self.cloud: str
         if "google" in total_base_providers and "aws" in total_base_providers:
+            # TODO(ankur)
             raise UserErrors(
                 "You can have AWS as the cloud provider, or google, but not both"
             )
@@ -65,8 +66,10 @@ class Layer:
             self.cloud = "google"
         elif "aws" in total_base_providers:
             self.cloud = "aws"
+        elif "azure" in total_base_providers:
+            self.cloud = "azure"
         else:
-            raise UserErrors("No cloud provider (AWS or GCP) found")
+            raise UserErrors("No cloud provider (AWS or GCP or Azure) found")
         self.variables = variables or {}
         self.modules = []
         for module_data in modules_data:
@@ -288,6 +291,8 @@ class Layer:
     def state_storage(self) -> str:
         if self.parent is not None:
             return self.parent.state_storage()
+        elif self.cloud == "azure":
+            return f"opta{self.org_name}{self.name}"
         else:
             return f"opta-tf-state-{self.org_name}-{self.name}"
 

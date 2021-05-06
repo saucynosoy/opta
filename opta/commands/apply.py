@@ -9,6 +9,7 @@ from packaging import version
 from opta.amplitude import amplitude_client
 from opta.constants import MAX_TERRAFORM_VERSION, MIN_TERRAFORM_VERSION, TF_PLAN_PATH
 from opta.core.aws import AWS
+from opta.core.azure import Azure
 from opta.core.gcp import GCP
 from opta.core.generator import gen, gen_opta_resource_tags
 from opta.core.kubernetes import (
@@ -127,6 +128,8 @@ def _apply(
         AWS(layer).upload_opta_config(config)
     elif layer.cloud == "google":
         GCP(layer).upload_opta_config(config)
+    elif layer.cloud == "azure":
+        Azure(layer).upload_opta_config(config)
     else:
         raise Exception(f"Cannot handle upload config for cloud {layer.cloud}")
 
