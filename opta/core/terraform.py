@@ -571,6 +571,8 @@ class Terraform:
 
             account_result = poller.result()
             print(f"Provisioned storage account {account_result.name}")
+            # TODO(ankur): assign Storage Blob Data Contributor to this SA,
+            # otherwise it doesn't work
 
         # create container
         try:
