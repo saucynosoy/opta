@@ -1,5 +1,21 @@
+locals {
+  target_ports = var.delegated ? { http: "http", https: "http" } : { http: "http" }
+  container_ports = var.delegated ? { http: 80, https: 443 } : { http: 80, https: 443 }
+  config = { ssl-redirect: false }
+}
+
 data "azurerm_resource_group" "main" {
   name = "opta-${var.layer_name}"
+}
+
+variable "delegated" {
+  type = bool
+  default = false
+}
+
+variable "cert_arn" {
+  type = string
+  default = ""
 }
 
 variable "env_name" {
