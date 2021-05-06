@@ -1,4 +1,4 @@
-resource "azurerm_kubernetes_cluster" "example" {
+resource "azurerm_kubernetes_cluster" "main" {
   name                = "opta-${var.layer_name}"
   location            = data.azurerm_resource_group.main.location
   resource_group_name = data.azurerm_resource_group.main.name

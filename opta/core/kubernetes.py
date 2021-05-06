@@ -10,6 +10,7 @@ from kubernetes.client import ApiException, CoreV1Api, V1Event, V1ObjectReferenc
 from kubernetes.config import load_kube_config
 from kubernetes.watch import Watch
 
+from opta.core.azure import Azure
 from opta.core.gcp import GCP
 from opta.core.terraform import get_terraform_outputs
 from opta.exceptions import UserErrors
@@ -40,6 +41,10 @@ def configure_kubectl(layer: "Layer") -> None:
         _aws_configure_kubectl(layer)
     elif layer.cloud == "google":
         _gcp_configure_kubectl(layer)
+    elif layer.cloud == "azure":
+        providers = _get_root_layer(layer).gen_providers(0)
+        outputs = get_terraform_outputs(_get_root_layer(layer))
+        Azure.configure_kubectl(providers, outputs)
 
 
 def _gcp_configure_kubectl(layer: "Layer") -> None:

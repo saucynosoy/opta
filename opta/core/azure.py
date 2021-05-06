@@ -2,6 +2,10 @@ from typing import TYPE_CHECKING, Any, List, Optional
 
 from azure.identity import DefaultAzureCredential
 
+from opta.exceptions import UserErrors
+from opta.nice_subprocess import nice_run
+from opta.utils import is_tool
+
 if TYPE_CHECKING:
     from opta.layer import Layer
 
@@ -11,6 +15,29 @@ class Azure:
 
     def __init__(self, layer: "Layer"):
         self.layer = layer
+
+    @classmethod
+    def configure_kubectl(cls, providers: dict, outputs: dict) -> None:
+        if not is_tool("az"):
+            raise UserErrors("Please install az CLI first")
+
+        rg_name = providers["terraform"]["backend"]["azurerm"]["resource_group_name"]
+        cluster_name = outputs.get("k8s_cluster_name")
+
+        if not cluster_name:
+            raise Exception("The cluster name could not be determined.")
+
+        nice_run(
+            [
+                "az",
+                "aks",
+                "get-credentials",
+                "--resource-group",
+                rg_name,
+                "--name",
+                cluster_name,
+            ]
+        )
 
     @classmethod
     def get_credentials(cls) -> Any:
