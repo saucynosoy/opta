@@ -66,7 +66,7 @@ class Layer:
             self.cloud = "google"
         elif "aws" in total_base_providers:
             self.cloud = "aws"
-        elif "azure" in total_base_providers:
+        elif "azurerm" in total_base_providers:
             self.cloud = "azure"
         else:
             raise UserErrors("No cloud provider (AWS or GCP or Azure) found")

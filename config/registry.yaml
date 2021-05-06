@@ -13,7 +13,7 @@ backends:
         gcs:
           bucket: "{state_storage}"
           prefix: "{layer_name}"
-  azure:
+  azurerm:
     terraform:
       backend:
         azurerm:

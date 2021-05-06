@@ -10,6 +10,7 @@ from azure.core.exceptions import ResourceNotFoundError
 from azure.identity import AzureCliCredential
 from azure.mgmt.resource import ResourceManagementClient
 from azure.mgmt.storage import StorageManagementClient
+from azure.storage.blob import BlobServiceClient
 from botocore.config import Config
 from botocore.exceptions import ClientError
 from google.api_core.exceptions import ClientError as GoogleClientError
@@ -254,7 +255,7 @@ class Terraform:
             "storage_account_name"
         ]
         container_name = providers["terraform"]["backend"]["azurerm"]["container_name"]
-        subscription_id = providers["provider"]["azure"]["subscription_id"]
+        subscription_id = providers["provider"]["azurerm"]["subscription_id"]
 
         storage_client = StorageManagementClient(credentials, subscription_id)
         try:
@@ -373,10 +374,31 @@ class Terraform:
                     return False
                 raise
         elif "azurerm" in providers.get("terraform", {}).get("backend", {}):
-            return False
-            # TODO(ankur)
+            storage_account_name = providers["terraform"]["backend"]["azurerm"][
+                "storage_account_name"
+            ]
+            container_name = providers["terraform"]["backend"]["azurerm"][
+                "container_name"
+            ]
+            key = providers["terraform"]["backend"]["azurerm"]["key"]
+
+            credentials = Azure.get_credentials()
+            try:
+                blob = (
+                    BlobServiceClient(
+                        f"https://{storage_account_name}.blob.core.windows.net/",
+                        credential=credentials,
+                    )
+                    .get_container_client(container_name)
+                    .get_blob_client(key)
+                )
+                with open(state_file, "wb") as file_obj:
+                    blob_data = blob.download_blob()
+                    blob_data.readinto(file_obj)
+            except ResourceNotFoundError:
+                return False
         else:
-            raise UserErrors("Need to get state from S3 or GCS")
+            raise UserErrors("Need to get state from S3 or GCS or Azure storage")
 
         cls.downloaded_state[layer.name] = True
         return True
@@ -509,8 +531,8 @@ class Terraform:
         resource_group_name = providers["terraform"]["backend"]["azurerm"][
             "resource_group_name"
         ]
-        region = providers["provider"]["azure"]["region"]
-        subscription_id = providers["provider"]["azure"]["subscription_id"]
+        region = providers["provider"]["azurerm"]["region"]
+        subscription_id = providers["provider"]["azurerm"]["subscription_id"]
         storage_account_name = providers["terraform"]["backend"]["azurerm"][
             "storage_account_name"
         ]
