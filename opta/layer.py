@@ -296,16 +296,16 @@ class Layer:
         else:
             return f"opta-tf-state-{self.org_name}-{self.name}"
 
-    def gen_providers(self, module_idx: int) -> Dict[Any, Any]:
+    def gen_providers(self, module_idx: int, clean: bool = True) -> Dict[Any, Any]:
         ret: Dict[Any, Any] = {"provider": {}}
         providers = self.providers
         if self.parent is not None:
             providers = deep_merge(providers, self.parent.providers)
         for k, v in providers.items():
-            self.handle_special_providers(k, v)
-            ret["provider"][k] = v
+            new_v = self.handle_special_providers(k, v, clean)
+            ret["provider"][k] = new_v
             if k in REGISTRY["backends"]:
-                hydration = deep_merge(self.metadata_hydration(), {"provider": v})
+                hydration = deep_merge(self.metadata_hydration(), {"provider": new_v})
                 ret["terraform"] = hydrate(
                     REGISTRY["backends"][k]["terraform"], hydration
                 )
@@ -341,12 +341,24 @@ class Layer:
         return ret
 
     # Special logic for mapping the opta config to the provider block
-    def handle_special_providers(self, provider_name: str, provider_data: dict) -> None:
+    def handle_special_providers(
+        self, provider_name: str, provider_data: dict, clean: bool
+    ) -> dict:
+        new_provider_data = provider_data.copy()
         # Terraform requires an array of AWS account ids, but having the customer specify
         # that is awk, so transform it during the mapping.
-        if provider_name == "aws" and "account_id" in provider_data:
-            aws_account_id = provider_data.pop("account_id")
-            provider_data["allowed_account_ids"] = [aws_account_id]
+        if provider_name == "aws" and "account_id" in new_provider_data:
+            aws_account_id = new_provider_data.pop("account_id")
+            new_provider_data["allowed_account_ids"] = [aws_account_id]
+
+        if provider_name == "azurerm":
+            new_provider_data["features"] = {}
+
+        # TODO(ankur): Very ugly
+        if clean and provider_name == "azurerm":
+            new_provider_data.pop("region")
+
+        return new_provider_data
 
     # Get the root-most layer
     def root(self) -> "Layer":

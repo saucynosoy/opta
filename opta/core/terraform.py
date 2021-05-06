@@ -690,7 +690,7 @@ class Terraform:
         """
         Idempotently create remote storage for tf state
         """
-        providers = layer.gen_providers(0)
+        providers = layer.gen_providers(0, clean=False)
         if "s3" in providers.get("terraform", {}).get("backend", {}):
             cls._create_aws_state_storage(providers)
         if "gcs" in providers.get("terraform", {}).get("backend", {}):

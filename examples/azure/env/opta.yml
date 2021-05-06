@@ -6,3 +6,4 @@ providers:
     subscription_id: 73903fcd-dadd-4bf2-ae4b-ccc4ba9016a1
 modules:
   - type: azure-base
+  - type: azure-aks
