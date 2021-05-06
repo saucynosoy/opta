@@ -1,0 +1,59 @@
+environments:
+  - name: staging
+    path: "../env/opta.yml"
+    variables:
+      max_nodes: 2
+name: service-flyte
+modules:
+  - name: db
+    type: aws-postgres
+  - name: s3
+    type: aws-s3
+    bucket_name: "{parent_name}-{layer_name}"
+  - type: helm-chart
+    chart: ../../../../flyte/helm
+    namespace: flyte
+    create_namespace: true
+    values_file: ./values-eks.yaml
+    values:
+      postgres:
+        enabled: false
+      db:
+        database:
+          port: 5432
+          username: "${{module.db.db_user}}"
+          host: "${{module.db.db_host}}"
+          dbname: "${{module.db.db_name}}"
+      common:
+        ingress:
+          host: "flyte.{parent.domain}"
+          annotations:
+            kubernetes.io/ingress.class: "nginx"
+        databaseSecret:
+          secretManifest:
+            stringData:
+              pass.txt: "${{module.db.db_password}}"
+      storage:
+        bucketName: "{parent_name}-{layer_name}"
+        s3:
+          region: "us-east-1"
+      flyteadmin:
+        serviceAccount:
+          create: true
+          annotations:
+            eks.amazonaws.com/role-arn: "arn:aws:iam::889760294590:role/flyte"
+      datacatalog:
+        serviceAccount:
+          create: true
+          annotations:
+            eks.amazonaws.com/role-arn: "arn:aws:iam::889760294590:role/flyte"
+      flytepropeller:
+        serviceAccount:
+          create: true
+          annotations:
+            eks.amazonaws.com/role-arn: "arn:aws:iam::889760294590:role/flyte"
+      workflow_scheduler:
+        config:
+          scheduler:
+            eventScheduler:
+              scheduleRole: "arn:aws:iam::889760294590:role/flyte"
