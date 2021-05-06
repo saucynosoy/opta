@@ -17,7 +17,7 @@ backends:
     terraform:
       backend:
         azurerm:
-          resource_group_name: "opta-{layer_name}"
+          resource_group_name: "{state_storage}"
           storage_account_name: "{state_storage}"
           container_name: "tfstate"
           key: "{layer_name}"
@@ -373,9 +373,8 @@ modules:
       node_disk_size: optional
       node_instance_type: optional
     outputs:
-      kube_config:
+      k8s_cluster_name:
         export: true
-        sensitive: true
     providers:
       data:
         azurerm_kubernetes_cluster:
@@ -495,6 +494,32 @@ modules:
         name: GCS Bucket
         desc: Distributed object storage
         url: https://console.cloud.google.com/storage/browser/{id}
+  azure-k8s-service:
+    location: azure-k8s-service
+    variables:
+      env_name: str
+      layer_name: str
+      module_name: str
+      image: str
+      port: optional
+      tag: optional
+      env_vars: optional
+      secrets: optional
+      autoscaling_target_cpu_percentage: optional
+      autoscaling_target_mem_percentage: optional
+      liveness_probe_path: optional
+      readiness_probe_path: optional
+      healthcheck_path: optional
+      resource_request: optional
+      public_uri: optional
+      domain: optional
+      read_buckets: optional
+      write_buckets: optional
+      min_containers: optional
+      max_containers: optional
+    outputs:
+      docker_repo_url:
+        export: true
   gcp-k8s-service:
     location: gcp-k8s-service
     variables:
