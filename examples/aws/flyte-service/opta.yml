@@ -57,3 +57,29 @@ modules:
           scheduler:
             eventScheduler:
               scheduleRole: "arn:aws:iam::889760294590:role/flyte"
+      cluster_resource_manager:
+        enabled: true
+        config:
+          cluster_resources:
+            customData:
+              - production:
+                  - defaultIamRole:
+                      value: "arn:aws:iam::889760294590:role/flyte"
+                  - projectQuotaCpu:
+                      value: "5"
+                  - projectQuotaMemory:
+                      value: "4000Mi"
+              - staging:
+                  - defaultIamRole:
+                      value: "arn:aws:iam::889760294590:role/flyte"
+                  - projectQuotaCpu:
+                      value: "2"
+                  - projectQuotaMemory:
+                      value: "3000Mi"
+              - development:
+                  - defaultIamRole:
+                      value: "arn:aws:iam::889760294590:role/flyte"
+                  - projectQuotaCpu:
+                      value: "4"
+                  - projectQuotaMemory:
+                      value: "3000Mi"
