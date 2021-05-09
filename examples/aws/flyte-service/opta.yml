@@ -10,6 +10,13 @@ modules:
   - name: s3
     type: aws-s3
     bucket_name: "{parent_name}-{layer_name}"
+  - name: flyterole
+    type: aws-iam-role
+    allowed_k8s_services:
+      - namespace: "*"
+        service_name: "*"
+    links:
+      - s3: ["write"]
   - type: helm-chart
     chart: ../../../../flyte/helm
     namespace: flyte
@@ -41,22 +48,22 @@ modules:
         serviceAccount:
           create: true
           annotations:
-            eks.amazonaws.com/role-arn: "arn:aws:iam::889760294590:role/flyte"
+            eks.amazonaws.com/role-arn: "${{module.flyterole.role_arn}}"
       datacatalog:
         serviceAccount:
           create: true
           annotations:
-            eks.amazonaws.com/role-arn: "arn:aws:iam::889760294590:role/flyte"
+            eks.amazonaws.com/role-arn: "${{module.flyterole.role_arn}}"
       flytepropeller:
         serviceAccount:
           create: true
           annotations:
-            eks.amazonaws.com/role-arn: "arn:aws:iam::889760294590:role/flyte"
+            eks.amazonaws.com/role-arn: "${{module.flyterole.role_arn}}"
       workflow_scheduler:
         config:
           scheduler:
             eventScheduler:
-              scheduleRole: "arn:aws:iam::889760294590:role/flyte"
+              scheduleRole: "${{module.flyterole.role_arn}}"
       configmap:
         remoteData:
           region: "us-east-1"
@@ -70,21 +77,21 @@ modules:
             customData:
               - production:
                   - defaultIamRole:
-                      value: "arn:aws:iam::889760294590:role/flyte"
+                      value: "${{module.flyterole.role_arn}}"
                   - projectQuotaCpu:
                       value: "5"
                   - projectQuotaMemory:
                       value: "4000Mi"
               - staging:
                   - defaultIamRole:
-                      value: "arn:aws:iam::889760294590:role/flyte"
+                      value: "${{module.flyterole.role_arn}}"
                   - projectQuotaCpu:
                       value: "2"
                   - projectQuotaMemory:
                       value: "3000Mi"
               - development:
                   - defaultIamRole:
-                      value: "arn:aws:iam::889760294590:role/flyte"
+                      value: "${{module.flyterole.role_arn}}"
                   - projectQuotaCpu:
                       value: "4"
                   - projectQuotaMemory:
