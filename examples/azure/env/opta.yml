@@ -1,4 +1,4 @@
-name: demo
+name: staging77
 org_name: runx
 providers:
   azurerm:

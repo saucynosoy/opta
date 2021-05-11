@@ -5,7 +5,7 @@ locals {
 }
 
 data "azurerm_resource_group" "main" {
-  name = "opta-${var.layer_name}"
+  name = "optarunxstaging77"
 }
 
 variable "delegated" {

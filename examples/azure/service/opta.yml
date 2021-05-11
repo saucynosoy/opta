@@ -1,0 +1,14 @@
+environments:
+  - name: staging
+    path: "../env/opta.yml"
+name: service-1
+modules:
+  - name: app
+    type: azure-k8s-service
+    image: docker.io/kennethreitz/httpbin:latest
+    liveness_probe_path: "/get"
+    readiness_probe_path: "/get"
+    port:
+      http: 80
+    public_uri:
+      - "all"
