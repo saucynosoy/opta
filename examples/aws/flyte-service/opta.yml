@@ -10,13 +10,27 @@ modules:
   - name: s3
     type: aws-s3
     bucket_name: "{parent_name}-{layer_name}"
+  - name: notifcationsQueue
+    type: aws-sqs
+  - name: schedulesQueue
+    type: aws-sqs
+  - name: topic
+    type: aws-sns
+    sqs_subscribers:
+      - "${{module.notifcationsQueue.queue_arn}}"
   - name: flyterole
     type: aws-iam-role
+    extra_iam_policies:
+      - "arn:aws:iam::aws:policy/CloudWatchEventsFullAccess"
+      - "arn:aws:iam::889760294590:policy/live-example-live-example-awsses-sender"
     allowed_k8s_services:
       - namespace: "*"
         service_name: "*"
     links:
       - s3: ["write"]
+      - notifcationsQueue
+      - schedulesQueue
+      - topic
   - type: helm-chart
     chart: ../../../../flyte/helm
     namespace: flyte
@@ -34,6 +48,7 @@ modules:
       common:
         ingress:
           host: "flyte.{parent.domain}"
+          albSSLRedirect: false
           annotations:
             kubernetes.io/ingress.class: "nginx"
         databaseSecret:
@@ -60,10 +75,41 @@ modules:
           annotations:
             eks.amazonaws.com/role-arn: "${{module.flyterole.role_arn}}"
       workflow_scheduler:
+        enabled: true
         config:
           scheduler:
+            # -- This is configured to use Cloudwatch schedules as explained [here](https://docs.aws.amazon.com/AmazonCloudWatch/latest/events/Create-CloudWatch-Events-Scheduled-Rule.html)
             eventScheduler:
+              scheme: aws
+              region: us-east-1
               scheduleRole: "${{module.flyterole.role_arn}}"
+              targetName: "${{module.schedulesQueue.queue_arn}}"
+              scheduleNamePrefix: flyte
+            workflowExecutor:
+              scheme: aws
+              region: us-east-1
+              scheduleQueueName: "${{module.schedulesQueue.queue_name}}"
+              accountId: 889760294590
+              reconnectAttempts: 10
+              reconnectDelaySeconds: 30
+      workflow_notifications:
+        enabled: true
+        config:
+          notifications:
+            type: aws
+            region: us-east-1
+            publisher:
+              topicName: "${{module.topic.topic_arn}}"
+            processor:
+              queueName: "${{module.notifcationsQueue.queue_name}}"
+              accountId: 889760294590
+            emailer:
+              subject: "Flyte: {{ project }}/{{ domain }}/{{ launch_plan.name }} has '{{ phase }}'"
+              sender: "flyte@example.runx.dev"
+              body: |
+                Execution {{ workflow.project }}/{{ workflow.domain }}/{{ workflow.name }}/{{ name }} has {{ phase }}.
+                Details: https://flyte.example.com/console/projects/{{ project }}/domains/{{ domain }}/executions/{{ name }}.
+                {{ error }}
       configmap:
         remoteData:
           region: "us-east-1"
