@@ -18,16 +18,6 @@ modules:
     type: aws-sns
     sqs_subscribers:
       - "${{module.notifcationsQueue.queue_arn}}"
-  - name: flyteuser
-    type: aws-iam-user
-    extra_iam_policies:
-      - "arn:aws:iam::aws:policy/CloudWatchEventsFullAccess"
-      - "arn:aws:iam::889760294590:policy/live-example-live-example-awsses-sender"
-    links:
-      - s3: ["write"]
-      - notifcationsQueue
-      - schedulesQueue
-      - topic
   - name: flyterole
     type: aws-iam-role
     extra_iam_policies:
