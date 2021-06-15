@@ -1,5 +1,14 @@
+resource "random_id" "key_suffix" {
+  byte_length = 8
+  keepers = {
+    preemptible  = var.preemptible
+    machine_type = var.node_instance_type
+    disk_size_gb = var.node_disk_size
+  }
+}
+
 resource "google_container_node_pool" "default" {
-  name               = "opta-${var.layer_name}-default"
+  name               = "opta-${var.layer_name}-${random_id.key_suffix.hex}"
   cluster            = google_container_cluster.primary.name
   location           = data.google_client_config.current.region
   initial_node_count = var.min_nodes
@@ -15,7 +24,7 @@ resource "google_container_node_pool" "default" {
   }
 
   node_config {
-    preemptible  = false
+    preemptible  = var.preemptible
     machine_type = var.node_instance_type
     disk_size_gb = var.node_disk_size
     tags         = ["opta-${var.layer_name}-nodes"]
@@ -31,5 +40,9 @@ resource "google_container_node_pool" "default" {
     labels = {
       node_pool_name = "opta-${var.layer_name}-default"
     }
+  }
+  lifecycle {
+    create_before_destroy = true
+    ignore_changes        = [name]
   }
 }

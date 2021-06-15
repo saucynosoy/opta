@@ -365,6 +365,7 @@ modules:
       vpc_self_link: str
       private_subnet_self_link: str
       node_zone_names: optional
+      preemptible: optional
     outputs:
       k8s_endpoint:
         export: true
