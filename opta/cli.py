@@ -23,8 +23,9 @@ from opta.commands.secret import secret
 from opta.commands.shell import shell
 from opta.commands.validate import validate
 from opta.commands.version import version
-from opta.exceptions import UserErrors
+from opta.exceptions import TerraformError, UserErrors
 from opta.one_time import one_time
+from opta.parser.terraform_exceptions import parse_terraform_exceptions
 from opta.upgrade import check_version_upgrade
 from opta.utils import dd_handler, dd_listener, logger
 
@@ -82,6 +83,8 @@ if __name__ == "__main__":
         one_time()
         cleanup_files()
         cli()
+    except TerraformError as e:
+        parse_terraform_exceptions(e)
     except CalledProcessError as e:
         logger.exception(e)
         if e.stderr is not None:

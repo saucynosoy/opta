@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import time
-from subprocess import DEVNULL, PIPE  # nosec
+from subprocess import DEVNULL, PIPE, CalledProcessError  # nosec
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Set
 from uuid import uuid4
 
@@ -30,7 +30,7 @@ from opta.amplitude import amplitude_client
 from opta.core.aws import AWS, get_aws_resource_id
 from opta.core.azure import Azure
 from opta.core.gcp import GCP
-from opta.exceptions import MissingState, UserErrors
+from opta.exceptions import MissingState, TerraformError, UserErrors
 from opta.nice_subprocess import nice_run
 from opta.utils import deep_merge, fmt_msg, logger
 
@@ -50,7 +50,10 @@ class Terraform:
         if quiet:
             kwargs["stderr"] = PIPE
             kwargs["stdout"] = DEVNULL
-        nice_run(["terraform", "init", *tf_flags], check=True, **kwargs)
+        try:
+            nice_run(["terraform", "init", *tf_flags], check=True, **kwargs)
+        except CalledProcessError as e:
+            raise TerraformError(e)
 
     # Get outputs of the current terraform state
     @classmethod
@@ -100,6 +103,8 @@ class Terraform:
                 check=True,
                 **kwargs,
             )
+        except CalledProcessError as e:
+            raise TerraformError(e)
         except Exception as e:
             logging.error(e)
             logging.info("Terraform apply failed, would rollback, but skipping for now..")
@@ -139,16 +144,22 @@ class Terraform:
     @classmethod
     def import_resource(cls, tf_resource_address: str, aws_resource_id: str) -> None:
         kwargs: Dict[str, Any] = {"env": {**os.environ.copy(), **EXTRA_ENV}}
-        nice_run(
-            ["terraform", "import", tf_resource_address, aws_resource_id],
-            check=True,
-            **kwargs,
-        )
+        try:
+            nice_run(
+                ["terraform", "import", tf_resource_address, aws_resource_id],
+                check=True,
+                **kwargs,
+            )
+        except CalledProcessError as e:
+            raise TerraformError(e)
 
     @classmethod
     def refresh(cls, *tf_flags: str) -> None:
         kwargs: Dict[str, Any] = {"env": {**os.environ.copy(), **EXTRA_ENV}}
-        nice_run(["terraform", "refresh", *tf_flags], check=True, **kwargs)
+        try:
+            nice_run(["terraform", "refresh", *tf_flags], check=True, **kwargs)
+        except CalledProcessError as e:
+            raise TerraformError(e)
 
     @classmethod
     def destroy_resources(
@@ -178,11 +189,14 @@ class Terraform:
                 continue
 
             resource_targets = [f"-target={resource}" for resource in module_resources]
-            nice_run(
-                ["terraform", "destroy", *resource_targets, *tf_flags],
-                check=True,
-                **kwargs,
-            )
+            try:
+                nice_run(
+                    ["terraform", "destroy", *resource_targets, *tf_flags],
+                    check=True,
+                    **kwargs,
+                )
+            except CalledProcessError as e:
+                raise TerraformError(e)
 
     @classmethod
     def destroy_all(cls, layer: "Layer", *tf_flags: str) -> None:
@@ -201,11 +215,19 @@ class Terraform:
             if module.name not in existing_modules:
                 continue
             cls.refresh(f"-target={module_address_prefix}")
-            nice_run(
-                ["terraform", "destroy", f"-target={module_address_prefix}", *tf_flags],
-                check=True,
-                **kwargs,
-            )
+            try:
+                nice_run(
+                    [
+                        "terraform",
+                        "destroy",
+                        f"-target={module_address_prefix}",
+                        *tf_flags,
+                    ],
+                    check=True,
+                    **kwargs,
+                )
+            except CalledProcessError as e:
+                raise TerraformError(e)
             layer.post_delete(idx)
             idx -= 1
 
@@ -240,7 +262,10 @@ class Terraform:
     @classmethod
     def remove_from_state(cls, resource_address: str) -> None:
         kwargs: Dict[str, Any] = {"env": {**os.environ.copy(), **EXTRA_ENV}}
-        nice_run(["terraform", "state", "rm", resource_address], **kwargs)
+        try:
+            nice_run(["terraform", "state", "rm", resource_address], **kwargs)
+        except CalledProcessError as e:
+            raise TerraformError(e)
 
     @classmethod
     def verify_storage(cls, layer: "Layer") -> bool:
@@ -306,9 +331,15 @@ class Terraform:
         if quiet:
             kwargs["stderr"] = PIPE
             kwargs["stdout"] = DEVNULL
-        nice_run(
-            ["terraform", "plan", "-compact-warnings", *tf_flags], check=True, **kwargs
-        )
+
+        try:
+            nice_run(
+                ["terraform", "plan", "-compact-warnings", *tf_flags],
+                check=True,
+                **kwargs,
+            )
+        except CalledProcessError as e:
+            raise TerraformError(e)
 
     @classmethod
     def show_plan(cls) -> Dict[Any, Any]:
@@ -322,7 +353,10 @@ class Terraform:
     @classmethod
     def show(cls, *tf_flags: str) -> None:
         kwargs: Dict[str, Any] = {"env": {**os.environ.copy(), **EXTRA_ENV}}
-        nice_run(["terraform", "show", *tf_flags], check=True, **kwargs)
+        try:
+            nice_run(["terraform", "show", *tf_flags], check=True, **kwargs)
+        except CalledProcessError as e:
+            raise TerraformError(e)
 
     @classmethod
     def get_existing_modules(cls, layer: "Layer") -> Set[str]:
